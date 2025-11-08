@@ -1,0 +1,468 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据拆分工具</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5', // 主色调：靛蓝色
+                        secondary: '#10B981', // 辅助色：绿色
+                        accent: '#F59E0B', // 强调色：橙色
+                        dark: '#1F2937', // 深色
+                        light: '#F9FAFB' // 浅色
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                },
+            }
+        }
+    </script>
+    <!-- 自定义工具类 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .bg-gradient-primary {
+                background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-all-300 {
+                transition: all 0.3s ease;
+            }
+        }
+    </style>
+    <!-- 全局样式 -->
+    <style>
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c5c5c5;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        /* 动画效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .result-item {
+            transition: all 0.2s ease;
+        }
+        .result-item:hover {
+            transform: translateX(5px);
+        }
+    </style>
+</head>
+<body class="bg-light min-h-screen text-dark">
+    <!-- 顶部导航栏 -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-sm shadow-sm">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-scissors text-primary text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold text-primary">数据拆分工具</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 transition-all-300">
+                    <i class="fa fa-moon-o text-dark"></i>
+                </button>
+                <button id="help-btn" class="p-2 rounded-full hover:bg-gray-100 transition-all-300">
+                    <i class="fa fa-question-circle text-dark"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区 -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- 工具卡片 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8 animate-fade-in">
+            <!-- 分隔符选择区域 -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fa fa-object-group mr-2 text-primary"></i>
+                    选择源数据分隔符
+                </h2>
+                <div class="flex flex-wrap gap-3">
+                    <button class="separator-btn px-4 py-2 rounded-lg border-2 border-primary bg-primary text-white font-medium transition-all-300 hover:bg-primary/90" data-separator="#">
+                        #
+                    </button>
+                    <button class="separator-btn px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-dark font-medium transition-all-300 hover:border-primary hover:text-primary" data-separator="@">
+                        @
+                    </button>
+                    <button class="separator-btn px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-dark font-medium transition-all-300 hover:border-primary hover:text-primary" data-separator="&">
+                        &amp;
+                    </button>
+                    <div class="relative flex-grow max-w-xs">
+                        <input type="text" id="custom-separator" placeholder="输入其他分隔符" 
+                            class="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all-300">
+                        <button id="custom-separator-btn" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all-300">
+                            确定
+                        </button>
+                    </div>
+                </div>
+                <p id="selected-separator-info" class="mt-3 text-sm text-gray-500">
+                    <i class="fa fa-info-circle"></i> 当前选择的分隔符：<span class="font-medium text-primary">#</span>
+                </p>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fa fa-pencil mr-2 text-primary"></i>
+                    输入待拆分数据
+                </h2>
+                <textarea id="input-data" rows="6" class="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all-300 resize-y"
+                    placeholder="请在这里粘贴或输入需要拆分的数据..."></textarea>
+                <div class="flex justify-end mt-2">
+                    <button id="split-btn" class="px-6 py-2 rounded-lg bg-primary text-white font-medium transition-all-300 hover:bg-primary/90 flex items-center">
+                        <i class="fa fa-scissors mr-2"></i>
+                        开始拆分
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果展示区域 -->
+        <div id="results-container" class="bg-white rounded-xl shadow-lg p-6 mb-8 hidden animate-fade-in">
+            <h2 class="text-lg font-semibold mb-4 flex items-center">
+                <i class="fa fa-list-alt mr-2 text-secondary"></i>
+                拆分结果
+            </h2>
+            <div id="results-summary" class="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p class="text-gray-700"><i class="fa fa-check-circle text-secondary"></i> 共获取到 <span id="result-count" class="font-bold text-secondary">0</span> 组数据，点击数据可复制</p>
+            </div>
+            <div id="results-list" class="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                <!-- 结果将在这里动态生成 -->
+            </div>
+        </div>
+
+        <!-- 数据整理区域 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 animate-fade-in">
+            <h2 class="text-lg font-semibold mb-4 flex items-center">
+                <i class="fa fa-table mr-2 text-accent"></i>
+                数据整理
+            </h2>
+            <textarea id="整理-data" rows="8" class="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-all-300 resize-y"
+                placeholder="整理后的结果将显示在这里，您也可以在这里编辑和整理数据..."></textarea>
+            <div class="flex justify-end mt-2 space-x-2">
+                <button id="clear整理-btn" class="px-4 py-2 rounded-lg bg-gray-200 text-dark font-medium transition-all-300 hover:bg-gray-300">
+                    清空
+                </button>
+                <button id="copy整理-btn" class="px-4 py-2 rounded-lg bg-accent text-white font-medium transition-all-300 hover:bg-accent/90">
+                    复制全部
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部信息 -->
+    <footer class="bg-white py-6 border-t border-gray-200">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>© 2023 数据拆分工具 | 设计与开发</p>
+            <p class="mt-2">一个简单高效的数据处理助手</p>
+        </div>
+    </footer>
+
+    <!-- 帮助模态框 -->
+    <div id="help-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4 animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-primary">使用帮助</h3>
+                <button id="close-help" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <h4 class="font-semibold text-dark">如何使用数据拆分工具？</h4>
+                    <ol class="list-decimal list-inside space-y-2 mt-2 text-gray-600">
+                        <li>选择或输入分隔符（如#、@、&等）</li>
+                        <li>在输入框中粘贴或输入需要拆分的数据</li>
+                        <li>点击「开始拆分」按钮</li>
+                        <li>查看拆分结果，点击可复制单条数据</li>
+                        <li>使用底部文本框整理和编辑数据</li>
+                    </ol>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-dark">提示</h4>
+                    <ul class="list-disc list-inside space-y-2 mt-2 text-gray-600">
+                        <li>拆分结果会自动同步到下方的整理区域</li>
+                        <li>可以使用自定义分隔符进行拆分</li>
+                        <li>支持点击单条结果进行快速复制</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 复制成功提示 -->
+    <div id="copy-toast" class="fixed bottom-6 right-6 bg-secondary text-white px-4 py-2 rounded-lg shadow-lg z-50 hidden animate-fade-in">
+        <div class="flex items-center">
+            <i class="fa fa-check-circle mr-2"></i>
+            <span>复制成功！</span>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // DOM元素
+        const separatorBtns = document.querySelectorAll('.separator-btn');
+        const customSeparatorInput = document.getElementById('custom-separator');
+        const customSeparatorBtn = document.getElementById('custom-separator-btn');
+        const selectedSeparatorInfo = document.getElementById('selected-separator-info');
+        const inputData = document.getElementById('input-data');
+        const splitBtn = document.getElementById('split-btn');
+        const resultsContainer = document.getElementById('results-container');
+        const resultCount = document.getElementById('result-count');
+        const resultsList = document.getElementById('results-list');
+        const 整理Data = document.getElementById('整理-data');
+        const clear整理Btn = document.getElementById('clear整理-btn');
+        const copy整理Btn = document.getElementById('copy整理-btn');
+        const themeToggle = document.getElementById('theme-toggle');
+        const helpBtn = document.getElementById('help-btn');
+        const helpModal = document.getElementById('help-modal');
+        const closeHelp = document.getElementById('close-help');
+        const copyToast = document.getElementById('copy-toast');
+
+        // 当前选择的分隔符
+        let currentSeparator = '#';
+
+        // 初始化示例数据（已注释，等待用户手动输入）
+        // inputData.value = '236479645-+546656166@26+#61564891315666ajhiuhd ihuaiuyx/djkoijaxdiuxugc23654-5450）））== jd#326+5c 64559d';
+
+        // 分隔符按钮点击事件
+        separatorBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 移除所有按钮的选中状态
+                separatorBtns.forEach(b => {
+                    b.classList.remove('bg-primary', 'text-white', 'border-primary');
+                    b.classList.add('bg-white', 'text-dark', 'border-gray-300');
+                });
+                
+                // 添加当前按钮的选中状态
+                btn.classList.remove('bg-white', 'text-dark', 'border-gray-300');
+                btn.classList.add('bg-primary', 'text-white', 'border-primary');
+                
+                // 更新当前分隔符
+                currentSeparator = btn.getAttribute('data-separator');
+                updateSeparatorInfo();
+                
+                // 清空自定义分隔符输入框
+                customSeparatorInput.value = '';
+            });
+        });
+
+        // 自定义分隔符按钮点击事件
+        customSeparatorBtn.addEventListener('click', () => {
+            const customSeparator = customSeparatorInput.value.trim();
+            if (customSeparator) {
+                // 移除所有按钮的选中状态
+                separatorBtns.forEach(btn => {
+                    btn.classList.remove('bg-primary', 'text-white', 'border-primary');
+                    btn.classList.add('bg-white', 'text-dark', 'border-gray-300');
+                });
+                
+                // 更新当前分隔符
+                currentSeparator = customSeparator;
+                updateSeparatorInfo();
+            }
+        });
+
+        // 自定义分隔符输入框回车事件
+        customSeparatorInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                customSeparatorBtn.click();
+            }
+        });
+
+        // 更新分隔符信息显示
+        function updateSeparatorInfo() {
+            selectedSeparatorInfo.innerHTML = `
+                <i class="fa fa-info-circle"></i> 当前选择的分隔符：<span class="font-medium text-primary">${currentSeparator}</span>
+            `;
+        }
+
+        // 拆分按钮点击事件
+        splitBtn.addEventListener('click', () => {
+            const data = inputData.value.trim();
+            if (!data) {
+                showToast('请输入需要拆分的数据！', 'warning');
+                return;
+            }
+
+            // 拆分数据
+            const results = splitData(data, currentSeparator);
+            
+            // 显示结果
+            displayResults(results);
+            
+            // 将结果同步到整理区域
+            syncTo整理(results);
+        });
+
+        // 数据拆分函数
+        function splitData(data, separator) {
+            // 处理特殊字符在正则表达式中的转义
+            const escapedSeparator = separator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(escapedSeparator, 'g');
+            return data.split(regex).filter(item => item.trim() !== '');
+        }
+
+        // 显示拆分结果
+        function displayResults(results) {
+            resultsContainer.classList.remove('hidden');
+            resultCount.textContent = results.length;
+            
+            // 清空结果列表
+            resultsList.innerHTML = '';
+            
+            // 添加结果项
+            results.forEach((result, index) => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item p-3 bg-gray-50 rounded-lg border-l-4 border-secondary hover:shadow-md cursor-pointer';
+                resultItem.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <span class="font-bold text-secondary mr-2">${index + 1}.</span>
+                            <span class="text-gray-800">${result}</span>
+                        </div>
+                        <button class="copy-item-btn text-gray-400 hover:text-secondary transition-colors">
+                            <i class="fa fa-copy"></i>
+                        </button>
+                    </div>
+                `;
+                
+                // 点击复制单条结果
+                resultItem.addEventListener('click', (e) => {
+                    if (!e.target.closest('.copy-item-btn')) {
+                        copyToClipboard(result);
+                    }
+                });
+                
+                // 复制按钮点击事件
+                const copyBtn = resultItem.querySelector('.copy-item-btn');
+                copyBtn.addEventListener('click', () => {
+                    copyToClipboard(result);
+                });
+                
+                resultsList.appendChild(resultItem);
+            });
+        }
+
+        // 同步结果到整理区域
+        function syncTo整理(results) {
+            整理Data.value = results.join('\n');
+        }
+
+        // 清空整理区域
+        clear整理Btn.addEventListener('click', () => {
+            整理Data.value = '';
+        });
+
+        // 复制整理区域全部内容
+        copy整理Btn.addEventListener('click', () => {
+            const content = 整理Data.value;
+            if (content) {
+                copyToClipboard(content);
+            } else {
+                showToast('没有可复制的内容！', 'warning');
+            }
+        });
+
+        // 复制到剪贴板
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('复制成功！', 'success');
+            }).catch(err => {
+                showToast('复制失败，请手动复制！', 'error');
+                console.error('复制失败:', err);
+            });
+        }
+
+        // 显示提示信息
+        function showToast(message, type = 'success') {
+            copyToast.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fa fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'times-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            // 设置不同类型的颜色
+            if (type === 'success') {
+                copyToast.classList.add('bg-secondary');
+                copyToast.classList.remove('bg-warning', 'bg-red-500');
+            } else if (type === 'warning') {
+                copyToast.classList.add('bg-warning');
+                copyToast.classList.remove('bg-secondary', 'bg-red-500');
+            } else {
+                copyToast.classList.add('bg-red-500');
+                copyToast.classList.remove('bg-secondary', 'bg-warning');
+            }
+            
+            copyToast.classList.remove('hidden');
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                copyToast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // 帮助按钮点击事件
+        helpBtn.addEventListener('click', () => {
+            helpModal.classList.remove('hidden');
+        });
+
+        // 关闭帮助模态框
+        closeHelp.addEventListener('click', () => {
+            helpModal.classList.add('hidden');
+        });
+
+        // 点击模态框外部关闭
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                helpModal.classList.add('hidden');
+            }
+        });
+
+        // 主题切换功能（基础实现，可根据需求扩展）
+        themeToggle.addEventListener('click', () => {
+            showToast('主题切换功能开发中...', 'warning');
+        });
+
+        // 页面加载时执行拆分（已注释，防止自动执行）
+        // window.addEventListener('DOMContentLoaded', () => {
+        //     splitBtn.click();
+        // });
+    </script>
+</body>
+</html>
